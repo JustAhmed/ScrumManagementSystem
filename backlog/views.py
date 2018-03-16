@@ -1,12 +1,20 @@
+from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import CreateView, FormView, View
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login, authenticate
 from django.utils.http import is_safe_url
 from .forms import NewSprint, NewBackLog, NewTask, LoginForm, RegisterForm, TaskModificationForm
 from django.contrib.auth.decorators import login_required
 from django import template
 from .models import UserManager
-import operator
+from .models import BackLog, Sprint, Task
+from django.template.loader import render_to_string
+from .tokens import account_activation_token
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.encoding import force_bytes, force_text
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.core.mail import EmailMessage
+
 
 register = template.Library()
 
@@ -39,8 +47,6 @@ class NextUrlMixin(object):
 
 
 # Create your views here.
-from .models import BackLog, Sprint, Task
-
 
 @login_required
 def home(request):
@@ -185,10 +191,52 @@ class LoginView(NextUrlMixin, RequestFormAttachMixin, FormView):
         return redirect(next_path)
 
 
-class RegisterView(CreateView):
-    form_class = RegisterForm
-    template_name = 'register.html'
-    success_url = '/'
+# class RegisterView(CreateView):
+#    form_class = RegisterForm
+#    template_name = 'register.html'
+#    success_url = '/'
+
+def signup(request):
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.active = False
+            user.save()
+            current_site = get_current_site(request)
+            mail_subject = 'Activate your blog account.'
+            message = render_to_string('acc_active_email.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uid': urlsafe_base64_encode(force_bytes(user.pk)).decode(),
+                'token': account_activation_token.make_token(user),
+            })
+            to_email = form.cleaned_data.get('email')
+            email = EmailMessage(
+                        mail_subject, message, to=[to_email]
+            )
+            email.send()
+            return HttpResponse('Please confirm your email address to complete the registration')
+    else:
+        form = RegisterForm()
+    return render(request, 'register.html', {'form': form})
+
+
+def activate(request, uidb64, token):
+    try:
+        object = UserManager()
+        uid = force_text(urlsafe_base64_decode(uidb64))
+        user = User.object.get(pk=uid)
+    except(TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    if user is not None and account_activation_token.check_token(user, token):
+        user.active = True
+        user.save()
+        login(request, user)
+        # return redirect('home')
+        return HttpResponse('Thank you for the confirmation. Now you can <a href="/">login</a> your account.')
+    else:
+        return HttpResponse('Activation link is invalid!')
 
 
 def modify_task(request, pk, spk):
@@ -208,17 +256,19 @@ def modify_task(request, pk, spk):
             selected_task.name = request.POST['name']
             selected_task.description = request.POST['description']
             selected_task.importance = request.POST['importance']
-            try:
-                selected_task.assigned_user = User.object.all().get(email=form.cleaned_data['assigned_user'])
-            except:
-                selected_task.assigned_user = None
+            # selected_task.assigned_user = request.POST['assigned_user']
+            selected_task.assigned_user = User.object.all().get(email=request.POST['assigned_user'])
+            if selected_task.assigned_user:
+                selected_task.status = 2
             selected_task.save()
             return redirect('sprint_tasks', pk, spk)
     else:
         form = TaskModificationForm(initial={'name': selected_task.name,
                                              'description': selected_task.description,
                                              'dead_line': selected_task.end_at,
-                                             'importance': selected_task.importance})
+                                             'importance': selected_task.importance,
+                                             'assigned_user': selected_task.assigned_user})
+            
     return render(request, 'modify.html', {'task': selected_task, 'sprint': sprint, 'form': form})
 
 

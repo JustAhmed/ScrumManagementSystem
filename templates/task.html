@@ -67,12 +67,12 @@
                 {% elif request.user == task.assigned_user and request.user.is_admin and task.status == 2 %}
                 <form method="POST" action="{% url 'sprint_tasks' backlog.pk sprint.pk %}">
                     {% csrf_token %}
-                    <button type='submit' class="form-control" name="task" value="{{ task.id }}">Mark Done</button>
+                    <button type='submit' class="form-control btn btn-success" name="task" value="{{ task.id }}">Mark Done</button>
                 </form>
                 {% elif request.user.is_admin and sprint.state != 1%}
                 <form method="POST" action="{% url 'sprint_tasks' backlog.pk sprint.pk%}">
                     {% csrf_token %}
-                    <button type='submit' class="form-control" name="task" value="{{ task.id }}">Withdraw task</button>
+                    <button type='submit' class="form-control" name="task" value="{{ task.id }}">Withdraw</button>
                 </form>
                 {% else %} {% if sprint.state != 1%}Already Chosen{% endif %} {% endif %} {% endif %}
             </td>

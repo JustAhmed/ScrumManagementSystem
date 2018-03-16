@@ -1,8 +1,11 @@
 from django.contrib import admin
-from backlog.models import BackLog, Sprint, User, Task
+from backlog.models import BackLog, Sprint, Task
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import UserAdminChangeForm, UserAdminCreationForm
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class UserAdmin(BaseUserAdmin):
@@ -25,7 +28,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password1', 'password2')}
+            'fields': ('first_name', 'last_name', 'email', 'password1', 'password2')}
         ),
     )
     search_fields = ('email',)

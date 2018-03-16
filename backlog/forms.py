@@ -1,7 +1,11 @@
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from .models import User, UserManager
+from .models import UserManager
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse
+
+User = get_user_model()
 
 
 class TaskModificationForm(forms.Form):
@@ -40,7 +44,7 @@ class TaskModificationForm(forms.Form):
     all_users = User.object.all()
     users += ((None, '-----------------------'),)
     for i in all_users:
-        users += ((i, str(i.id) + '. ' + i.first_name + i.last_name),)
+        users += ((i, str(i.id) + '. ' + i.first_name + ' ' + i.last_name),)
     assigned_user = forms.ChoiceField(required=False, choices=users, widget=forms.Select(attrs=
     {
         'class': 'form-control selectpicker '
@@ -174,10 +178,17 @@ class LoginForm(forms.Form):
         data = self.cleaned_data
         email = data.get("email")
         password = data.get("password")
-        # object = UserManager()
-        # qs = User.object.filter(email=email)
-        # if qs.exists():
-        #     # user email is registered, check active/
+
+        object = UserManager()
+        qs = User.object.filter(email=email)
+
+        if qs.exists():
+            # user email is registered, check active
+            not_active = qs.filter(active=False)
+            print(not_active.exists())
+            if not_active.exists():
+                raise forms.ValidationError("This user is inactive.")
+
         user = authenticate(request, username=email, password=password)
         if user is None:
             raise forms.ValidationError("Invalid credentials")
@@ -218,6 +229,7 @@ class RegisterForm(forms.ModelForm):
         # Save the provided password in hashed format
         user = super(RegisterForm, self).save(commit=False)
         user.set_password(self.cleaned_data["password1"])
+        user.active = False
         if commit:
             user.save()
         return user
