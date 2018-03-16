@@ -120,6 +120,6 @@ STATIC_URL = '/static/'
 # Setting Email host server
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'  # to send using outlook email use
-EMAIL_HOST_USER = 'rushahmed95@gmail.com'
-EMAIL_HOST_PASSWORD = '0120451598Sos'
+EMAIL_HOST_USER = '---------@gmail.com'  # Sender's Email: Must be a gmail account to use google's smtp server
+EMAIL_HOST_PASSWORD = '-------'  # your email's password
 EMAIL_PORT = 587
